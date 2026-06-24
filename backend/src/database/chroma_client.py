@@ -1,5 +1,4 @@
 import chromadb
-from chromadb.config import Settings
 from src.config import settings
 import logging
 
@@ -12,14 +11,15 @@ class ChromaClient:
     def connect(self):
         if not self.client:
             try:
-                self.client = chromadb.HttpClient(
-                    host=settings.CHROMA_HOST,
-                    port=settings.CHROMA_PORT,
-                    settings=Settings(anonymized_telemetry=False)
+                # Switched from HttpClient to CloudClient
+                self.client = chromadb.CloudClient(
+                    api_key=settings.CHROMA_API_KEY,
+                    tenant=settings.CHROMA_TENANT,
+                    database=settings.CHROMA_DATABASE
                 )
-                logger.info("Connected to ChromaDB")
+                logger.info("Connected to ChromaDB Cloud")
             except Exception as e:
-                logger.exception(f"Failed to connect to ChromaDB: {e}")
+                logger.exception(f"Failed to connect to ChromaDB Cloud: {e}")
                 self.client = None
 
     def get_or_create_collection(self, job_id: str):
@@ -27,6 +27,8 @@ class ChromaClient:
             self.connect()
             if not self.client:
                 return None
+        
+        # Note: Chroma collections usually need to be unique per tenant/database
         collection_name = f"repo_{job_id.replace('-', '_')}"
         try:
             return self.client.get_or_create_collection(
