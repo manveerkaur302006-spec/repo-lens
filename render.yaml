@@ -72,7 +72,5 @@ services:
     envVars:
       # Wait for backend to build, then grab its live public URL
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: repolens-backend
-          property: url
+        value: "https://repolens-backend.onrender.com"
+        sync: false
