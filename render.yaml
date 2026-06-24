@@ -10,7 +10,8 @@ services:
   - type: web
     name: repolens-neo4j
     env: image
-    image: neo4j:5-community
+    image: 
+      url: neo4j:5-community
     plan: free
     envVars:
       - key: NEO4J_AUTH
@@ -23,7 +24,8 @@ services:
   - type: web
     name: repolens-chromadb
     env: image
-    image: chromadb/chroma:0.6.3
+    image:
+      url: chromadb/chroma:0.6.3
     plan: free
     envVars:
       - key: ANONYMIZED_TELEMETRY
