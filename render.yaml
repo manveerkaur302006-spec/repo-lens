@@ -73,4 +73,3 @@ services:
       # Wait for backend to build, then grab its live public URL
       - key: VITE_API_URL
         value: "https://repolens-backend.onrender.com"
-        sync: false
