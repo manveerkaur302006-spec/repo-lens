@@ -1,0 +1,55 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Agents
+AGENT.md
+ARCHITECTURE.md
+PRD.md
+UI_REQUIREMENTS.md
+TASKS.md
+deep-research-report.md
+
+# Node
+node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+
+# Repos cloned for analysis
+repos/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ChromaDB local data
+chroma_data/
+
+# Neo4j local data
+neo4j_data/
+
+# PostgreSQL local data
+pg_data/
