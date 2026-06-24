@@ -1,26 +1,25 @@
 databases:
-  # 1. POSTGRES (Native Managed Database)
+  # 1. POSTGRES (Fully automated native DB, spins up instantly)
   - name: repolens-postgres
     databaseName: repolens
     user: repolens
     plan: free
 
 services:
-  # 2. NEO4J (Public Image)
+  # 2. NEO4J (Directly pulls from Docker Hub)
   - type: web
     name: repolens-neo4j
     env: image
-    image: 
+    image:
       url: neo4j:5-community
     plan: free
     envVars:
       - key: NEO4J_AUTH
         value: neo4j/repolens_neo4j
-      # Render needs to know which port to listen to for web traffic
       - key: PORT
         value: 7474 
 
-  # 3. CHROMADB (Public Image)
+  # 3. CHROMADB (Directly pulls from Docker Hub)
   - type: web
     name: repolens-chromadb
     env: image
@@ -33,20 +32,20 @@ services:
       - key: PORT
         value: 8000
 
-  # 4. BACKEND
+  # 4. BACKEND (Your pre-built Docker image)
   - type: web
     name: repolens-backend
-    env: docker
+    env: image
+    image:
+      url: manveerkaur30052006/repolens-backend:latest
     plan: free
-    rootDir: ./backend
-    dockerfilePath: ./Dockerfile
     envVars:
-      # Dynamically grab the Postgres connection string
+      # Automatically fetches the connection string from the DB above
       - key: DATABASE_URL
         fromDatabase:
           name: repolens-postgres
           property: connectionString
-      # Point to the internal Render network URLs
+      # Internal network connections to your Dockerized databases
       - key: NEO4J_URI
         value: bolt://repolens-neo4j:7687
       - key: NEO4J_USER
@@ -60,16 +59,13 @@ services:
       - key: CLONE_DIR
         value: /tmp/repos
 
-  # 5. FRONTEND
+  # 5. FRONTEND (Your pre-built Docker image)
   - type: web
     name: repolens-frontend
-    env: docker
+    env: image
+    image:
+      url: manveerkaur30052006/repolens-frontend:latest
     plan: free
-    rootDir: ./frontend
-    dockerfilePath: ./Dockerfile
-    # Overriding CMD to force Vite to bind to 0.0.0.0 so Render can see it
-    dockerCommand: npm run dev -- --host 
     envVars:
-      # Wait for backend to build, then grab its live public URL
       - key: VITE_API_URL
         value: "https://repolens-backend.onrender.com"
