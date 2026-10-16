@@ -6,20 +6,7 @@ databases:
     plan: free
 
 services:
-  # 2. NEO4J (Directly pulls from Docker Hub)
-  - type: web
-    name: repolens-neo4j
-    env: image
-    image:
-      url: neo4j:5-community
-    plan: free
-    envVars:
-      - key: NEO4J_AUTH
-        value: neo4j/repolens_neo4j
-      - key: PORT
-        value: 7474 
-
-  # 3. CHROMADB (Directly pulls from Docker Hub)
+  # 2. CHROMADB (Directly pulls from Docker Hub)
   - type: web
     name: repolens-chromadb
     env: image
@@ -32,7 +19,7 @@ services:
       - key: PORT
         value: 8000
 
-  # 4. BACKEND (built from this repository)
+  # 3. BACKEND (built from this repository)
   - type: web
     name: repolens-backend
     runtime: docker
@@ -63,7 +50,7 @@ services:
       - key: CLONE_DIR
         value: /tmp/repos
 
-  # 5. FRONTEND (built from this repository)
+  # 4. FRONTEND (built from this repository)
   - type: web
     name: repolens-frontend
     runtime: docker
