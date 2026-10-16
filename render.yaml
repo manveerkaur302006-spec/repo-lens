@@ -6,20 +6,7 @@ databases:
     plan: free
 
 services:
-  # 2. CHROMADB (Directly pulls from Docker Hub)
-  - type: web
-    name: repolens-chromadb
-    env: image
-    image:
-      url: chromadb/chroma:0.6.3
-    plan: free
-    envVars:
-      - key: ANONYMIZED_TELEMETRY
-        value: "false"
-      - key: PORT
-        value: 8000
-
-  # 3. BACKEND (built from this repository)
+  # Backend (built from this repository)
   - type: web
     name: repolens-backend
     runtime: docker
@@ -32,7 +19,8 @@ services:
         fromDatabase:
           name: repolens-postgres
           property: connectionString
-      # Enter Aura details as Render secrets during the first Blueprint deploy.
+      # Enter these provider credentials as Render secrets during the first
+      # Blueprint deploy. They are intentionally not committed to Git.
       - key: NEO4J_URI
         sync: false
       - key: NEO4J_USER
@@ -43,20 +31,11 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-      - key: CHROMA_HOST
-        value: repolens-chromadb
-      - key: CHROMA_PORT
-        value: 8000
+      - key: CHROMA_API_KEY
+        sync: false
+      - key: CHROMA_TENANT
+        sync: false
+      - key: CHROMA_DATABASE
+        sync: false
       - key: CLONE_DIR
         value: /tmp/repos
-
-  # 4. FRONTEND (built from this repository)
-  - type: web
-    name: repolens-frontend
-    runtime: docker
-    dockerContext: ./frontend
-    dockerfilePath: ./frontend/Dockerfile
-    plan: free
-    envVars:
-      - key: VITE_API_URL
-        value: "https://repolens-backend.onrender.com"
