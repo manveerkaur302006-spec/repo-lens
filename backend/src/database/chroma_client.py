@@ -11,13 +11,19 @@ class ChromaClient:
     def connect(self):
         if not self.client:
             try:
-                # Switched from HttpClient to CloudClient
-                self.client = chromadb.CloudClient(
-                    api_key=settings.CHROMA_API_KEY,
-                    tenant=settings.CHROMA_TENANT,
-                    database=settings.CHROMA_DATABASE
-                )
-                logger.info("Connected to ChromaDB Cloud")
+                if settings.CHROMA_API_KEY and settings.CHROMA_TENANT and settings.CHROMA_DATABASE:
+                    self.client = chromadb.CloudClient(
+                        api_key=settings.CHROMA_API_KEY,
+                        tenant=settings.CHROMA_TENANT,
+                        database=settings.CHROMA_DATABASE,
+                    )
+                    logger.info("Connected to ChromaDB Cloud")
+                else:
+                    self.client = chromadb.HttpClient(
+                        host=settings.CHROMA_HOST,
+                        port=settings.CHROMA_PORT,
+                    )
+                    logger.info("Connected to local ChromaDB at %s:%s", settings.CHROMA_HOST, settings.CHROMA_PORT)
             except Exception as e:
                 logger.exception(f"Failed to connect to ChromaDB Cloud: {e}")
                 self.client = None

@@ -1,13 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from src.database.postgres import init_db
+from src.database.postgres import init_db, engine
+from src.database.neo4j_client import neo4j_client
 from src.api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    yield
+    try:
+        yield
+    finally:
+        await neo4j_client.close()
+        await engine.dispose()
 
 app = FastAPI(
     title="RepoLens AI API",
@@ -17,7 +22,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

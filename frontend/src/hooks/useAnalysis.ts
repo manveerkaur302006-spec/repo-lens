@@ -27,7 +27,7 @@ export function useAnalysis(jobId: string | null) {
           setError(res.error_message);
         }
 
-        if (res.status === 'completed') {
+        if (res.status === 'completed' || res.status === 'partially_completed') {
           clearInterval(intervalId);
           const [reportData, graphData, filesData] = await Promise.all([
             apiClient.getReport(jobId),

@@ -25,7 +25,8 @@ class Neo4jClient:
         if not self.driver:
             await self.connect()
         parameters = parameters or {}
-        async with self.driver.session() as session:
+        session_kwargs = {"database": settings.NEO4J_DATABASE} if settings.NEO4J_DATABASE else {}
+        async with self.driver.session(**session_kwargs) as session:
             result = await session.run(query, parameters)
             return [record.data() async for record in result]
 

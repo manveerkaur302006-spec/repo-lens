@@ -40,17 +40,24 @@ class ParsedFile:
 
 class TreeSitterParser:
     def __init__(self):
-        self.parsers = {}
-        for lang_name, lang_obj in LANGUAGES.items():
-            parser = Parser(lang_obj)
-            self.parsers[lang_name] = parser
+        self.queries = {}
+
+    def _query(self, language: str, source: str) -> Query:
+        key = (language, source)
+        query = self.queries.get(key)
+        if query is None:
+            query = Query(LANGUAGES[language], source)
+            self.queries[key] = query
+        return query
 
     def parse_file(self, path: Path, language: str) -> Optional[ParsedFile]:
-        if language not in self.parsers:
+        if language not in LANGUAGES:
             return None
         try:
             content = path.read_text(encoding='utf-8')
-            tree = self.parsers[language].parse(bytes(content, 'utf8'))
+            # Parsers hold mutable state; using one per call permits simultaneous
+            # background analyses without serialising or corrupting parser state.
+            tree = Parser(LANGUAGES[language]).parse(bytes(content, 'utf8'))
             
             imports = self._extract_imports(tree.root_node, content, language)
             classes = self._extract_classes(tree.root_node, content, language)
@@ -88,7 +95,7 @@ class TreeSitterParser:
             return functions
             
         try:
-            query = Query(LANGUAGES[language], query_str)
+            query = self._query(language, query_str)
             cursor = QueryCursor(query)
             matches = cursor.matches(root)
             
@@ -119,7 +126,7 @@ class TreeSitterParser:
                             "ruby": "(call method: (identifier) @call)",
                         }.get(language)
                         if call_query_str:
-                            call_query = Query(LANGUAGES[language], call_query_str)
+                            call_query = self._query(language, call_query_str)
                             call_cursor = QueryCursor(call_query)
                             for _, c_match in call_cursor.matches(node):
                                 c_nodes = c_match.get("call", [])
@@ -164,7 +171,7 @@ class TreeSitterParser:
             return classes
             
         try:
-            query = Query(LANGUAGES[language], query_str)
+            query = self._query(language, query_str)
             cursor = QueryCursor(query)
             matches = cursor.matches(root)
             
@@ -213,7 +220,7 @@ class TreeSitterParser:
             return imports
             
         try:
-            query = Query(LANGUAGES[language], query_str)
+            query = self._query(language, query_str)
             cursor = QueryCursor(query)
             matches = cursor.matches(root)
             

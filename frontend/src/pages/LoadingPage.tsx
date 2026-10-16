@@ -9,7 +9,7 @@ export default function LoadingPage() {
   const { status, progress, currentStep, error } = useAnalysis(jobId || null);
 
   useEffect(() => {
-    if (status === 'completed' && jobId) {
+    if ((status === 'completed' || status === 'partially_completed') && jobId) {
       navigate(`/analysis/${jobId}`);
     }
   }, [status, jobId, navigate]);

@@ -49,16 +49,23 @@ class EmbeddingService:
             return [[0.0] * 768 for _ in chunks]
 
         embeddings = []
-        for chunk in chunks:
+        # Gemini accepts multiple contents in one embedding request. Batching cuts
+        # request overhead substantially while the conservative size avoids payload
+        # limits on large source files.
+        batch_size = 50
+        for start in range(0, len(chunks), batch_size):
+            batch = chunks[start:start + batch_size]
             try:
                 response = self.client.models.embed_content(
                     model='gemini-embedding-2',
-                    contents=chunk["content"],
+                    contents=[chunk["content"] for chunk in batch],
                 )
-                embeddings.append(response.embeddings[0].values)
+                if len(response.embeddings) != len(batch):
+                    raise ValueError("Embedding API returned an unexpected number of vectors")
+                embeddings.extend(item.values for item in response.embeddings)
             except Exception as e:
-                logger.error(f"Embedding failed: {e}")
-                embeddings.append([0.0] * 768)
+                logger.error(f"Embedding batch failed: {e}")
+                embeddings.extend([[0.0] * 768 for _ in batch])
         return embeddings
 
     def store_embeddings(self, job_id: str, chunks: List[Dict[str, Any]], embeddings: List[List[float]]):

@@ -28,11 +28,11 @@ class ParserService:
                 for f in parsed.functions:
                     num_calls += len(f.calls)
                     
-                logger.info(
-                    f"Parsed {file_info['path']} [Lang: {language}] -> "
-                    f"Classes: {num_classes}, Functions: {num_functions}, "
-                    f"Imports: {num_imports}, Calls: {num_calls}"
-                )
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "Parsed %s [Lang: %s] -> Classes: %s, Functions: %s, Imports: %s, Calls: %s",
+                        file_info["path"], language, num_classes, num_functions, num_imports, num_calls,
+                    )
                 
         return parsed_files
 

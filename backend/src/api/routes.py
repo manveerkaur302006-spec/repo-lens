@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.postgres import get_db
@@ -54,7 +55,7 @@ async def get_status(job_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/report/{job_id}", response_model=ReportResponse)
 async def get_report(job_id: str, db: AsyncSession = Depends(get_db)):
     job = await db.get(AnalysisJob, job_id)
-    if not job or job.status != "completed":
+    if not job or job.status not in {"completed", "partially_completed"}:
         raise HTTPException(status_code=404, detail="Report not ready or job not found")
     
     return ReportResponse(
@@ -65,10 +66,10 @@ async def get_report(job_id: str, db: AsyncSession = Depends(get_db)):
 @router.post("/query", response_model=QueryResponse)
 async def query_repo(req: QueryRequest, db: AsyncSession = Depends(get_db)):
     job = await db.get(AnalysisJob, req.job_id)
-    if not job or job.status != "completed":
+    if not job or job.status not in {"completed", "partially_completed"}:
         raise HTTPException(status_code=400, detail="Repository not fully analyzed yet")
         
-    result = rag_service.answer_question(req.job_id, req.question)
+    result = await asyncio.to_thread(rag_service.answer_question, req.job_id, req.question)
     return QueryResponse(answer=result["answer"], sources=result["sources"])
 
 @router.get("/graph/{job_id}", response_model=GraphData)
@@ -77,12 +78,5 @@ async def get_graph(job_id: str):
 
 @router.get("/files/{job_id}")
 async def get_files(job_id: str):
-    return {
-        "tree": {
-            "name": "root",
-            "path": "/",
-            "type": "dir",
-            "children": []
-        }
-    }
+    return {"tree": await graph_service.get_file_tree(job_id)}
 

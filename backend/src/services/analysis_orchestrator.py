@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.sqlalchemy_models import AnalysisJob
 from src.services.github_service import github_service
@@ -25,15 +26,18 @@ class AnalysisOrchestrator:
         async with async_session_maker() as db:
             try:
                 await self.update_job(job_id, "cloning", 10, "Cloning repository", db)
-                repo_path = github_service.clone_repository(repo_url, job_id)
+                # Git, filesystem traversal, parsing, and the SDK calls below are
+                # synchronous. Running them in worker threads keeps status and chat
+                # endpoints responsive while a repository is being analysed.
+                repo_path = await asyncio.to_thread(github_service.clone_repository, repo_url, job_id)
                 repo_name = repo_url.rstrip('/').split('/')[-1]
 
                 await self.update_job(job_id, "parsing", 15, "Scanning files", db)
-                scanned_files = github_service.scan_files(repo_path)
+                scanned_files = await asyncio.to_thread(github_service.scan_files, repo_path)
 
                 await self.update_job(job_id, "parsing", 40, "Parsing source code", db)
-                parsed_files = parser_service.parse_repository(scanned_files)
-                stats = parser_service.aggregate_stats(parsed_files)
+                parsed_files = await asyncio.to_thread(parser_service.parse_repository, scanned_files)
+                stats = await asyncio.to_thread(parser_service.aggregate_stats, parsed_files)
 
                 await self.update_job(job_id, "graphing", 55, "Building knowledge graph", db)
                 await graph_service.build_repository_graph(job_id, repo_name, parsed_files)
@@ -43,9 +47,9 @@ class AnalysisOrchestrator:
                 
                 try:
                     await self.update_job(job_id, "embedding", 75, "Generating embeddings", db)
-                    chunks = embedding_service.create_chunks(parsed_files)
-                    embeddings = embedding_service.generate_embeddings(chunks)
-                    embedding_service.store_embeddings(job_id, chunks, embeddings)
+                    chunks = await asyncio.to_thread(embedding_service.create_chunks, parsed_files)
+                    embeddings = await asyncio.to_thread(embedding_service.generate_embeddings, chunks)
+                    await asyncio.to_thread(embedding_service.store_embeddings, job_id, chunks, embeddings)
                 except Exception as e:
                     logger.exception(f"Embedding generation/storage failed for job {job_id}")
                     ai_failed = True

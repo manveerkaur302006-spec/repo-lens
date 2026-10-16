@@ -1,10 +1,11 @@
 import { AnalyzeResponse, StatusResponse, ReportResponse, GraphData, FileTreeNode, QueryResponse } from '../types';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api` || 'http://localhost:8000/api';
+const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// Accept both an API origin and a full /api URL so existing deployments keep working.
+const API_URL = configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${configuredApiUrl}/api`;
 
 export const apiClient = {
   async analyzeRepo(repoUrl: string): Promise<AnalyzeResponse> {
-    console.log("API_URL =", API_URL);
     const res = await fetch(`${API_URL}/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
