@@ -29,7 +29,7 @@ class EmbeddingService:
                     "end_line": func.end_line,
                     "content": func.body
                 })
-            
+
             if not pf.functions and not pf.classes and len(pf.raw_content.splitlines()) < 200:
                 chunks.append({
                     "id": str(uuid.uuid4()),
@@ -44,38 +44,51 @@ class EmbeddingService:
         return chunks
 
     def generate_embeddings(self, chunks: List[Dict[str, Any]]) -> List[List[float]]:
+        if not chunks:
+            return []
+
         if not self.client:
-            logger.warning("No GEMINI_API_KEY. Using mock embeddings.")
-            return [[0.0] * 768 for _ in chunks]
+            logger.error("GEMINI_API_KEY is missing; cannot generate real embeddings.")
+            raise RuntimeError("Gemini API key is not configured.")
 
         embeddings = []
-        # Gemini accepts multiple contents in one embedding request. Batching cuts
-        # request overhead substantially while the conservative size avoids payload
-        # limits on large source files.
-        batch_size = 50
-        for start in range(0, len(chunks), batch_size):
-            batch = chunks[start:start + batch_size]
+
+        for chunk in chunks:
             try:
                 response = self.client.models.embed_content(
-                    model='gemini-embedding-2',
-                    contents=[chunk["content"] for chunk in batch],
+                    model="gemini-embedding-001",
+                    contents=chunk["content"],
                 )
-                if len(response.embeddings) != len(batch):
-                    raise ValueError("Embedding API returned an unexpected number of vectors")
-                embeddings.extend(item.values for item in response.embeddings)
+
+                if not response.embeddings:
+                    raise ValueError("Gemini returned no embedding.")
+
+                vector = response.embeddings[0].values
+
+                if not vector:
+                    raise ValueError("Gemini returned an empty embedding.")
+
+                embeddings.append(vector)
+
             except Exception as e:
-                logger.error(f"Embedding batch failed: {e}")
-                embeddings.extend([[0.0] * 768 for _ in batch])
+                logger.exception(
+                    "Embedding generation failed for %s: %s",
+                    chunk.get("file_path", "unknown file"),
+                    e,
+                )
+                raise
+
         return embeddings
 
     def store_embeddings(self, job_id: str, chunks: List[Dict[str, Any]], embeddings: List[List[float]]):
         if not chunks:
             return
+
         collection = chroma_client.get_or_create_collection(job_id)
         if not collection:
             logger.error(f"Cannot store embeddings for {job_id}; Chroma collection is None.")
             return
-        
+
         ids = [c["id"] for c in chunks]
         documents = [c["content"] for c in chunks]
         metadatas = [{
@@ -102,10 +115,10 @@ class EmbeddingService:
         if not collection:
             logger.error(f"Cannot search embeddings for {job_id}; Chroma collection is None.")
             return []
-        
+
         if self.client:
             query_embedding = self.client.models.embed_content(
-                model='gemini-embedding-2',
+                model="gemini-embedding-001",
                 contents=query,
             ).embeddings[0].values
         else:
@@ -130,5 +143,6 @@ class EmbeddingService:
         except Exception as e:
             logger.exception(f"Failed to query ChromaDB for job {job_id}: {e}")
             return []
+
 
 embedding_service = EmbeddingService()
