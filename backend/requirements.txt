@@ -21,6 +21,7 @@ tree-sitter-ruby>=0.21.0
 tree-sitter-html>=0.21.0
 tree-sitter-css>=0.21.0
 google-genai>=0.2.0
+openai>=1.30.0
 gitpython>=3.1.43
 pydantic-settings>=2.2.1
 pytest>=8.2.2

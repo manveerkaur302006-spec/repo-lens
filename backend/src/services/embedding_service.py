@@ -48,8 +48,8 @@ class EmbeddingService:
             return []
 
         if not self.client:
-            logger.error("GEMINI_API_KEY is missing; cannot generate real embeddings.")
-            raise RuntimeError("Gemini API key is not configured.")
+            logger.error("GEMINI_API_KEY is missing; cannot generate embeddings (Gemini handles embeddings, not OpenRouter).")
+            raise RuntimeError("GEMINI_API_KEY is not configured. It is required for embedding generation.")
 
         embeddings = []
 

@@ -7,7 +7,11 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "repolens_neo4j"
     NEO4J_DATABASE: str = ""
+    # Gemini is used exclusively for embeddings (OpenRouter does not provide an embeddings API)
     GEMINI_API_KEY: str = ""
+    # OpenRouter LLM settings — used for RAG Q&A and repository summary generation
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
     CLONE_DIR: str = "/tmp/repos"
     # Cloud settings are optional: docker-compose uses the local HTTP server.
     CHROMA_API_KEY: str = ""

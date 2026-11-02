@@ -1,4 +1,4 @@
-from google import genai
+from openai import OpenAI
 from typing import Dict, Any, List
 from src.config import settings
 from src.parsers.tree_sitter_parser import ParsedFile
@@ -7,10 +7,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# OpenRouter is OpenAI-API-compatible; point the base_url at their endpoint.
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
 class SummaryService:
     def __init__(self):
-        if settings.GEMINI_API_KEY:
-            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        if settings.OPENROUTER_API_KEY:
+            self.client = OpenAI(
+                api_key=settings.OPENROUTER_API_KEY,
+                base_url=OPENROUTER_BASE_URL,
+            )
         else:
             self.client = None
 
@@ -19,7 +25,7 @@ class SummaryService:
         total_files = stats.get('total_files', 0)
         total_loc = stats.get('total_loc', 0)
         languages = list(stats.get('languages', {}).keys())
-        
+
         return {
             "purpose": f"Repository '{repo_name}' is a software project comprising {total_files} files and {total_loc} lines of code.",
             "tech_stack": languages,
@@ -34,54 +40,53 @@ class SummaryService:
         }
 
     def generate_summary(self, repo_name: str, stats: Dict[str, Any], parsed_files: List[ParsedFile]) -> Dict[str, Any]:
-        # if not self.client:
-        #     logger.warning("No Gemini API key provided. Using fallback summary.")
-        #     return self.get_fallback_summary(repo_name, stats)
+        if not self.client:
+            logger.warning("No OPENROUTER_API_KEY provided. Using fallback summary.")
+            return self.get_fallback_summary(repo_name, stats)
 
-        # # Get top files by LOC and top classes/functions
-        # sorted_files = sorted(parsed_files, key=lambda x: len(x.raw_content.splitlines()), reverse=True)[:10]
-        # top_files = [f"{pf.path} ({pf.language})" for pf in sorted_files]
-        
-        # prompt = f"""
-        # Analyze the repository '{repo_name}' based on the following metadata.
-        
-        # Stats:
-        # - Total Files: {stats.get('total_files')}
-        # - Total Lines of Code: {stats.get('total_loc')}
-        # - Languages: {json.dumps(stats.get('languages'))}
-        
-        # Top 10 Files:
-        # {json.dumps(top_files)}
-        
-        # Provide a JSON response with the following keys:
-        # - purpose (string): A short paragraph describing what this repository does.
-        # - tech_stack (list of strings): Main languages, frameworks, or tools used.
-        # - architecture (string): A paragraph explaining how the codebase is structured.
-        # - strengths (list of strings): 2-3 strong points about the codebase.
-        # - weaknesses (list of strings): 1-2 potential areas of improvement.
-        
-        # Respond ONLY with valid JSON.
-        # """
+        # Get top files by LOC for context
+        sorted_files = sorted(parsed_files, key=lambda x: len(x.raw_content.splitlines()), reverse=True)[:10]
+        top_files = [f"{pf.path} ({pf.language})" for pf in sorted_files]
 
-        # try:
-        #     # Using gemini-2.5-flash for faster, cheaper summaries
-        #     response = self.client.models.generate_content(
-        #         model='gemini-2.5-flash',
-        #         contents=prompt,
-        #         config=genai.types.GenerateContentConfig(
-        #             response_mime_type="application/json",
-        #         ),
-        #     )
-        #     return json.loads(response.text)
-        # except Exception as e:
-        #     logger.exception(f"Failed to generate summary via Gemini: {e}")
-        #     raise e
-        logger.warning(
-        "Summary generation disabled. Using fallback summary.")
-
-        return self.get_fallback_summary(
-        repo_name=repo_name,
-        stats=stats
+        system_prompt = (
+            "You are an expert software architect. "
+            "Analyze the provided repository metadata and return a JSON object with exactly these keys: "
+            "purpose (string), tech_stack (list of strings), architecture (string), "
+            "strengths (list of strings, 2-3 items), weaknesses (list of strings, 1-2 items). "
+            "Respond ONLY with valid JSON — no markdown fences, no extra text."
         )
+
+        user_message = (
+            f"Repository: {repo_name}\n\n"
+            f"Stats:\n"
+            f"- Total Files: {stats.get('total_files')}\n"
+            f"- Total Lines of Code: {stats.get('total_loc')}\n"
+            f"- Languages: {json.dumps(stats.get('languages'))}\n\n"
+            f"Top 10 Files by LOC:\n{json.dumps(top_files)}"
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=settings.OPENROUTER_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+            )
+            raw = response.choices[0].message.content or ""
+            # Strip accidental markdown fences if the model adds them
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+                raw = raw.rstrip("`").strip()
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            logger.exception(f"OpenRouter summary returned invalid JSON for {repo_name}: {e}")
+            return self.get_fallback_summary(repo_name, stats)
+        except Exception as e:
+            logger.exception(f"Failed to generate summary via OpenRouter for {repo_name}: {e}")
+            return self.get_fallback_summary(repo_name, stats)
 
 summary_service = SummaryService()
